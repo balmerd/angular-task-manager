@@ -2,6 +2,8 @@
  jQuery UI Sortable plugin wrapper
  
  https://github.com/angular-ui/ui-sortable
+ http://stackoverflow.com/questions/21182297/handling-moving-of-item-across-lists-in-angular-ui-sortable
+ http://stackoverflow.com/questions/21182297/handling-moving-of-item-across-lists-in-angular-ui-sortable
 
  @param [ui-sortable] {object} Options to pass to $.fn.sortable() merged onto ui.config
  */
