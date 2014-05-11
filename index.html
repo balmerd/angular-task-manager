@@ -18,6 +18,7 @@
                 <div class="btn-toolbar" role="toolbar">
                     <div class="btn-group">
                         <button type="button" class="btn btn-default" title="Add new Category" ng-click="addCategory()"><i class="fa fa-plus fa-lg"></i></button>
+                        <button id="save" type="button" class="btn btn-default" title="Save changes to this Collection" ng-click="saveChanges()"><i class="fa fa-save fa-lg"></i></button>
                         <button id="trash" type="button" class="btn btn-default" title="Drop Category or Item here to Delete" ng-click="emptyTrash()"><i class="fa fa-trash-o fa-lg"></i></button>
                     </div>
                     <div class="btn-group">
@@ -29,7 +30,7 @@
                                 <a ng-click="changeCollection(collection)">{{collection}}</a>
                             </li>
                             <li class="divider"></li>
-                            <li><a href="#">Each of these is a Collection</a></li>
+                            <li><a href="#">Add a new Collection</a></li>
                         </ul>
                     </div>
                 </div>
@@ -46,7 +47,7 @@
                             <ul class="list-group connectedSortableTask" ui-sortable="sortableTaskOptions" ng-model="trash">
                                 <li id="task_{{task.id}}" class="list-group-item" ng-repeat="task in trash">
                                     <i class="fa fa-arrows" style="margin-right:3px;"></i>
-                                    <b>{{task.name}}</b> {{task.details}}
+                                    <b>{{task.name}}</b> {{task.details}}<br/>
                                 </li>
                             </ul>
                         </div>
@@ -54,7 +55,7 @@
                 </div>
             </div>
             <div class="connectedSortableCategory" ui-sortable="sortableCategoryOptions" ng-model="categories" style="position:relative; top:0; left:0;"><!-- position so that dragging to the right doesn't show at top of page -->
-                <div class="col-md-2" ng-repeat="category in categories">
+                <div id="category_{{category.id}}" class="col-md-2" ng-repeat="category in categories">
                     <div class="bs-component">
                         <div class="panel panel-primary">
                             <div class="panel-heading">
@@ -67,7 +68,7 @@
                                 <ul class="list-group connectedSortableTask" ui-sortable="sortableTaskOptions" ng-model="category.tasks">
                                     <li id="task_{{task.id}}" class="list-group-item" ng-repeat="task in category.tasks">
                                         <i class="fa fa-arrows" style="margin-right:3px;"></i>
-                                        <b>{{task.name}}</b> {{task.details}}
+                                        <b>{{task.name}}</b> {{task.details}}<br/>
                                     </li>
                                 </ul>
                             </div>

@@ -17,19 +17,40 @@ taskApp.controller('TaskListCtrl', function ($log, $scope, uuid4) {
         }
     }
 
-    function updateCategoryProperties(categories) {
-        angular.forEach(categories, function (category) {
-            updateTaskProperties(category);
-        });
+    function updateCategoryProperties(category) {
+        $log.info(category.name);
+        category.sequence = 0;
+        category.initialized = false;
+        updateTaskProperties(category);
     }
 
     function updateTaskProperties(category) {
-        $log.info(category.name);
         angular.forEach(category.tasks, function (task, sequence) {
             task.sequence = sequence;
             task.category = category.name;
             $log.debug(sequence + ' : ' + task.name);
         });
+    }
+
+    function categoryChanged(category, newValues, oldValues) {
+        if (!category.initialized) {
+            category.initialized = true;
+        } else {
+            angular.forEach($scope.categories, function (cat, sequence) {
+                if (cat.tasks === newValues) {
+                    if (cat.name === category.name) {
+                        $log.debug(cat.name + ' same cat, tasks matches newValues');
+                    } else {
+                        $log.error(cat.name + ' different cat, tasks matches newValues');
+                    }
+                }
+            });
+
+            if (newValues !== oldValues) {
+                $log.debug(category.name + ' changed');
+                updateTaskProperties(category);
+            }
+        }
     }
 
     // DATA
@@ -44,6 +65,7 @@ taskApp.controller('TaskListCtrl', function ($log, $scope, uuid4) {
 
     $scope.categories = [
         {
+            id: uuid4.generate(),
             name: 'California',
             tasks: [
                 { id: uuid4.generate(), name: 'Hiking', details: 'on Mt. Tamalpais' },
@@ -52,6 +74,7 @@ taskApp.controller('TaskListCtrl', function ($log, $scope, uuid4) {
             ]
         },
         {
+            id: uuid4.generate(),
             name: 'Toronto',
             tasks: [
                 { id: uuid4.generate(), name: 'Fishing', details: 'at the Cottage' },
@@ -64,7 +87,6 @@ taskApp.controller('TaskListCtrl', function ($log, $scope, uuid4) {
     ////////////////////////////////////////////////////////////////////////////////////////////////////
 
     $scope.sortableCategoryOptions = {
-        //axis: 'x',
         handle: 'i',
         cursor: 'move',
         dropOnEmpty: false,
@@ -76,10 +98,6 @@ taskApp.controller('TaskListCtrl', function ($log, $scope, uuid4) {
         cursor: 'move',
         dropOnEmpty: true,
         connectWith: '.connectedSortableTask'
-        // TODO: need to add this to a sortable.js callback
-        //,stop: function (e, ui) {
-        //    $log.debug(JSON.stringify($('.ui-sortable').sortable('serialize')));
-        //}
     };
 
     // METHODS
@@ -88,18 +106,16 @@ taskApp.controller('TaskListCtrl', function ($log, $scope, uuid4) {
     $scope.addCategory = function () {
         var index = $scope.categories.length;
         var category = {
+            id: uuid4.generate(),
             name: 'More',
             tasks: [
                 { id: uuid4.generate(), name: 'Testing', details: 'added new category' }
             ]
         };
-        updateTaskProperties(category);
+        updateCategoryProperties(category);
         $scope.categories.push(category);
-        category.removeWatchHandler = $scope.$watchCollection('categories[' + index + '].tasks', function (newValues, oldValues) {
-            if (newValues !== oldValues) {
-                $log.debug(category.name + ' changed');
-                updateTaskProperties(category);
-            }
+        category.removeWatchHandler = $scope.$watchCollection('categories[' + index + '].tasks', function (oldValues, newValues) {
+            categoryChanged(category, oldValues, newValues);
         });
     }
 
@@ -133,12 +149,9 @@ taskApp.controller('TaskListCtrl', function ($log, $scope, uuid4) {
     ////////////////////////////////////////////////////////////////////////////////////////////////////
 
     angular.forEach($scope.categories, function (category, index) {
-        updateTaskProperties(category); // add computed properties
-        category.removeWatchHandler = $scope.$watchCollection('categories[' + index + '].tasks', function (newValues, oldValues) {
-            if (newValues !== oldValues) {
-                $log.debug(category.name + ' changed');
-                updateTaskProperties(category);
-            }
+        updateCategoryProperties(category); // add computed properties
+        category.removeWatchHandler = $scope.$watchCollection('categories[' + index + '].tasks', function (oldValues, newValues) {
+            categoryChanged(category, oldValues, newValues);
         });
     });
 
