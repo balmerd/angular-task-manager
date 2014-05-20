@@ -42,6 +42,11 @@ body {
 .form-control, input {
     color: #000;
 }
+.connectedSortableCategory { /* positioned so that dragging to the right doesn't show at top of page */
+    position: relative;
+    top: 0;
+    left: 0;
+}
 .connectedSortableTask {
     min-height: 1.5em;
 }

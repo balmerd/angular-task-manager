@@ -1,4 +1,4 @@
-"use strict";
+'use strict;'
 
 // RFC4122 version 4 compliant UUID generator.
 // Based on: http://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid-in-javascript/2117523#2117523
