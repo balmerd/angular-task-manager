@@ -50,3 +50,10 @@ body {
 .connectedSortableTask {
     min-height: 1.5em;
 }
+.list-group {
+    min-height: 1.5em;
+}
+.sortable-ghost {
+    background-color: #375A7F;
+    opacity: 0.5;
+}

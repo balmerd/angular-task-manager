@@ -6,9 +6,6 @@
     <title>Angular TaskBoard</title>
     <link href="//netdna.bootstrapcdn.com/bootswatch/latest/darkly/bootstrap.min.css" rel="stylesheet"><!-- includes normalize.css v3.0.0 -->
     <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.min.css" rel="stylesheet">
-    <!--
-    <link href="//ajax.aspnetcdn.com/ajax/jquery.ui/1.10.4/themes/redmond/jquery-ui.css" rel="stylesheet">
-    -->
     <link href="/css/app.css" rel="stylesheet">
 </head>
 <body ng-controller="TaskListCtrl">
@@ -37,8 +34,8 @@
             </div>
         </div>
         <div class="row">
-            <div class="connectedSortableCategory" ui-sortable="sortableCategoryOptions" ng-model="categories">
-                <div class="col-md-2" ng-repeat="category in categories">
+            <div id="multi" ng-model="categories">
+                <div class="col-md-2 tile" ng-repeat="category in categories">
                     <div class="bs-component">
                         <div class="panel panel-primary">
                             <div class="panel-heading">
@@ -48,10 +45,10 @@
                                 <a href="#" class="glyph-link" title="Delete Category" ng-click="removeCategory(category)"><i class="fa fa-trash-o"></i></a>
                             </div>
                             <div class="panel-body">
-                                <ul class="list-group connectedSortableTask" ui-sortable="sortableTaskOptions" ng-model="category.tasks">
-                                    <li id="task_{{task.id}}" class="list-group-item" ng-repeat="task in category.tasks">
-                                        <i class="fa fa-arrows" style="vertical-align:top; margin-top:2px; margin-right:3px;"></i>
-                                        <div style="display:inline-block; width:16em;" ng-click="editTask(task)"><b>{{task.name}}</b> {{task.details}}</div>
+                                <ul class="list-group" ng-model="category.tasks" data-index="{{$index}}"><!-- so we can use $scope.categories["data-index"] -->
+                                    <li id="{{task.id}}" class="list-group-item" ng-repeat="task in category.tasks | orderBy:'sequence'">
+                                        <i class="fa fa-arrows item-handle" style="vertical-align:top; margin-top:2px; margin-right:3px;"></i>
+                                        <div style="display:inline-block; width:16em;" ng-click="editTask(task)"><b>{{task.name}} ({{task.sequence}})</b> {{task.details}}</div>
                                         <i class="fa fa-trash-o" style="position: absolute; top:8px; right:6px;" ng-click="removeTask(category, task)"></i>
                                     </li>
                                 </ul>
@@ -59,16 +56,15 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-2" style="display: none;"><!-- HACK: so we can drag items to the end of the previous col-md-2 --></div>
             </div>
         </div>
     </div>
     <script src="//ajax.aspnetcdn.com/ajax/jQuery/jquery-2.1.0.min.js"></script>
     <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
     <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.15/angular.min.js"></script>
-    <script src="//ajax.aspnetcdn.com/ajax/jquery.ui/1.10.4/jquery-ui.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/underscore.js/1.6.0/underscore-min.js"></script>
     <script src="/js/uuid4.js"></script>
-    <script src="/js/sortable.js"></script>
+    <script src="/js/no-jquery-sortable.js"></script>
     <script src="/js/controllers.js"></script>
 </body>
 </html>
