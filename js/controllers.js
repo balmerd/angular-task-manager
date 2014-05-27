@@ -18,9 +18,80 @@ taskApp.controller('TaskListCtrl', ['$scope', '$log', 'uuid4', function ($scope,
         return s;
     }
 
+    function getCurrentCategoryAndTask(evt, listElement) {
+        $scope.currentCategory = getCategory(listElement);
+        if ((/update|remove/i).test(evt.type)) {
+            $scope.currentTask = _.find($scope.currentCategory.tasks, function (task) {
+                return task.id === evt.item.id;
+            });
+        }
+        $log.debug(sprintf('%s %s %s', $scope.currentCategory.name, evt.type.toUpperCase(), $scope.currentTask.name));
+    }
+
+    function getCategory(listElement) {
+        return $scope.categories[listElement.getAttribute('data-index')];
+    }
+
+    function createSortable(listElement) {
+        new Sortable(listElement, {
+            group: 'tasks',
+            draggable: '.list-group-item',
+            handle: '.item-handle',
+            onAdd: function (evt) { // fired after remove in no-jquery-sortable.js
+                Sortable.utils.stopPropagation(evt);
+
+                $scope.$apply(function () {
+                    getCurrentCategoryAndTask(evt, listElement);
+
+                    // add task to our scope
+
+                    $scope.currentCategory.tasks.push($scope.currentTask);
+
+                    // reorder task.sequence by LI order (orderBy doesn't work if "track by" is specified)
+
+                    angular.forEach(evt.item.parentNode.getElementsByTagName('li'), function (item, index) {
+                        _.find($scope.currentCategory.tasks, function (task) { return task.id === item.id; }).sequence = index;
+                    });
+
+                    // remove dropped LI from the UL, otherwise we get a duplicate when angular re-renders the list -- why???
+
+                    evt.item.parentNode.removeChild(evt.item);
+                });
+            },
+            onUpdate: function (evt) {
+                Sortable.utils.stopPropagation(evt);
+
+                $scope.$apply(function () {
+                    getCurrentCategoryAndTask(evt, listElement);
+
+                    // reorder task.sequence by LI order (orderBy doesn't work if "track by" is specified)
+
+                    angular.forEach(evt.item.parentNode.getElementsByTagName('li'), function (item, index) {
+                        _.find($scope.currentCategory.tasks, function (task) { return task.id === item.id; }).sequence = index;
+                    });
+
+                });
+            },
+            onRemove: function (evt) { // fired before add in no-jquery-sortable.js
+                Sortable.utils.stopPropagation(evt);
+
+                getCurrentCategoryAndTask(evt, listElement);
+
+                $scope.currentCategory.tasks.splice($scope.currentCategory.tasks.indexOf($scope.currentTask), 1);
+
+                // reorder task.sequence (orderBy doesn't work if "track by" is specified)
+
+                angular.forEach($scope.currentCategory.tasks, function (task, index) {
+                    task.sequence = index;
+                });
+            }
+        });
+    }
+
     // DATA
     ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    $scope.currentCategory;
     $scope.currentTask;
 
     $scope.collections = {
@@ -71,74 +142,7 @@ taskApp.controller('TaskListCtrl', ['$scope', '$log', 'uuid4', function ($scope,
     });
 
     setTimeout(function () { // wait until list is rendered
-        [ ].forEach.call(multi.getElementsByClassName('list-group'), function (listGroup) {
-            new Sortable(listGroup, {
-                group: 'tasks',
-                draggable: '.list-group-item',
-                handle: '.item-handle',
-                onAdd: function (evt) { // fired after remove in no-jquery-sortable.js
-                    Sortable.utils.stopPropagation(evt);
-
-                    $scope.$apply(function () {
-                        var categoryIndex = listGroup.getAttribute('data-index');
-                        var category = $scope.categories[categoryIndex];
-
-                        //$log.debug(sprintf('task %s added to %s', $scope.currentTask.name, categoryName));
-
-                        // TODO: reorder task.sequence (orderBy doesn't work if "track by" is specified)
-
-                        angular.forEach(evt.item.parentNode.getElementsByTagName('li'), function (item, index) {
-                            if (item.id === $scope.currentTask.id) {
-                                $scope.currentTask.sequence = index;
-                            } else {
-                                angular.forEach(category.tasks, function (task) {
-                                    if (item.id === task.id) {
-                                        task.sequence = index;
-                                    }
-                                });
-                            }
-                        });
-
-                        // remove dropped LI from the UL, otherwise we get a duplicate when angular re-renders the list -- why???
-
-                        evt.item.parentNode.removeChild(evt.item);
-
-                        // add task to our scope
-
-                        category.tasks.push($scope.currentTask);
-                    });
-                },
-                onUpdate: function (evt) {
-                    Sortable.utils.stopPropagation(evt);
-
-                    $scope.$apply(function () {
-                        var categoryIndex = listGroup.getAttribute('data-index');
-                        var category = $scope.categories[categoryIndex];
-
-                        // reorder task.sequence (orderBy doesn't work if "track by" is specified)
-
-                        angular.forEach(evt.item.parentNode.getElementsByTagName('li'), function (item, index) {
-                            _.find(category.tasks, function (task) { return task.id === item.id; }).sequence = index;
-                        });
-
-                    });
-                },
-                onRemove: function (evt) { // fired before add in no-jquery-sortable.js
-                    Sortable.utils.stopPropagation(evt);
-
-                    var categoryIndex = listGroup.getAttribute('data-index');
-                    var category = $scope.categories[categoryIndex];
-
-                    $scope.currentTask = _.find(category.tasks, function (task) {
-                        return task.id === evt.item.id;
-                    });
-
-                    if ($scope.currentTask) {
-                        category.tasks.splice(category.tasks.indexOf($scope.currentTask), 1);
-                    }
-                }
-            });
-        });
+        [ ].forEach.call(multi.getElementsByClassName('list-group'), createSortable);
     }, 500);
 
     // METHODS
