@@ -2,10 +2,50 @@
 
 /* Controllers */
 
-var taskApp = angular.module('taskApp', ['uuid4']);
+var taskApp = angular.module('taskApp', ['uuid4', 'ngStorage']);
 
 // include string names for the arguments eg: '$scope' so that they are not replaced when generating minified or obfuscated javascript
-taskApp.controller('TaskListCtrl', ['$scope', '$log', 'uuid4', function ($scope, $log, uuid4) {
+taskApp.controller('TaskListCtrl', ['$scope', '$log', '$localStorage', 'uuid4', function ($scope, $log, $localStorage, uuid4) {
+
+    // DATA
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    var multi = document.getElementById('multi');
+
+    $scope.currentCategory;
+    $scope.currentTask;
+
+    $scope.$storage = $localStorage;
+
+    $scope.collections = {
+        current: 'todo',
+        list: ['todo', 'other'] // these show up in the dropdown
+    };
+
+    //$scope.$storage.todo = [
+    //    {
+    //        id: uuid4.generate(),
+    //        sequence: 0,
+    //        name: 'California',
+    //        tasks: [
+    //            { id: uuid4.generate(), sequence: 0, name: 'Hiking', details: 'on Mt. Tamalpais' },
+    //            { id: uuid4.generate(), sequence: 1, name: 'Camping', details: 'in Carson Pass' },
+    //            { id: uuid4.generate(), sequence: 2, name: 'Kayaking', details: 'in San Francisco Bay' }
+    //        ]
+    //    },
+    //    {
+    //        id: uuid4.generate(),
+    //        sequence: 1,
+    //        name: 'Toronto',
+    //        tasks: [
+    //            { id: uuid4.generate(), sequence: 0, name: 'Fishing', details: 'at the Cottage' },
+    //            { id: uuid4.generate(), sequence: 1, name: 'Biking', details: 'at the Island' },
+    //            { id: uuid4.generate(), sequence: 2, name: 'Visiting', details: 'with Marcel, Rhiane, Charis, Ashley, Philip, Kizzy, Caleb, the newbie, Laurel, Dan, Marley, Mom, Dad, Auntie Jo, Mr. Vetere, Gus, Patrick, Brian' }
+    //        ]
+    //    }
+    //];
+
+    $scope.categories = $scope.$storage.todo;
 
     // HELPERS
     ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -88,89 +128,47 @@ taskApp.controller('TaskListCtrl', ['$scope', '$log', 'uuid4', function ($scope,
         });
     }
 
-    // DATA
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    $scope.currentCategory;
-    $scope.currentTask;
-
-    $scope.collections = {
-        current: 'todo',
-        list: ['todo', 'other'] // these show up in the dropdown
-    };
-
-    $scope.categories = [
-        {
-            id: uuid4.generate(),
-            sequence: 0,
-            name: 'California',
-            tasks: [
-                { id: uuid4.generate(), sequence: 0, name: 'Hiking', details: 'on Mt. Tamalpais' },
-                { id: uuid4.generate(), sequence: 1, name: 'Camping', details: 'in Carson Pass' },
-                { id: uuid4.generate(), sequence: 2, name: 'Kayaking', details: 'in San Francisco Bay' }
-            ]
-        },
-        {
-            id: uuid4.generate(),
-            sequence: 1,
-            name: 'Toronto',
-            tasks: [
-                { id: uuid4.generate(), sequence: 0, name: 'Fishing', details: 'at the Cottage' },
-                { id: uuid4.generate(), sequence: 1, name: 'Biking', details: 'at the Island' },
-                { id: uuid4.generate(), sequence: 2, name: 'Visiting', details: 'with Marcel, Rhiane, Charis, Ashley, Philip, Kizzy, Caleb, the newbie, Laurel, Dan, Marley, Mom, Dad, Auntie Jo, Mr. Vetere, Gus, Patrick, Brian' }
-            ]
-        }
-    ];
-
-    var multi = document.getElementById('multi');
-
-    new Sortable(multi, {
-        draggable: '.tile',
-        handle: '.glyph-link-move',
-        onAdd: function (evt) {
-            $log.debug('category added');
-            Sortable.utils.stopPropagation(evt);
-        },
-        onUpdate: function (evt) {
-            $log.debug('category updated');
-            Sortable.utils.stopPropagation(evt);
-        },
-        onRemove: function (evt) {
-            $log.debug('category removed');
-            Sortable.utils.stopPropagation(evt);
-        }
-    });
-
-    setTimeout(function () { // wait until list is rendered
-        [ ].forEach.call(multi.getElementsByClassName('list-group'), createSortable);
-    }, 500);
-
     // METHODS
     ////////////////////////////////////////////////////////////////////////////////////////////////////
 
     $scope.addCategory = function () {
-        var index = $scope.categories.length;
+        var categoryIndex = $scope.categories.length;
+
+        // TODO: category name dialog here
+
         var category = {
             id: uuid4.generate(),
-            sequence: index,
+            sequence: categoryIndex,
             name: 'More',
-            tasks: [
-                { id: uuid4.generate(), sequence: 0, name: 'Testing', details: 'added new category' }
-            ]
+            tasks: []
         };
+
         $scope.categories.push(category);
-        category.removeWatchHandler = $scope.$watchCollection('categories[' + index + '].tasks', function (newValues, oldValues) {
-            if (newValues !== oldValues) {
-                $log.warn(category.name + ' changed');
-            }
-        });
+
+        setTimeout(function () { // wait for render
+            createSortable(multi.getElementsByClassName('list-group')[categoryIndex]);
+
+            category.removeWatchHandler = $scope.$watch('categories[' + categoryIndex + '].tasks', function (newValues, oldValues) {
+                if (newValues !== oldValues) {
+                    $log.warn(category.name + ' changed');
+                    angular.forEach(category.tasks, function (task) {
+                        $log.info(sprintf('%s(%s)', task.name, task.sequence));
+                    });
+                    // TODO: update persistent store here
+                }
+            }, true);
+        }, 500)
     };
 
     $scope.addCollection = function () {
+        // TODO: collection name dialog here
+
         alert('addCollection');
     };
 
     $scope.addTask = function (category) {
+        // TODO: task entry dialog here
+
         category.tasks.push({ id: uuid4.generate(), sequence: category.tasks.length, name: 'Learning', details: 'angular.js' });
     };
 
@@ -214,21 +212,40 @@ taskApp.controller('TaskListCtrl', ['$scope', '$log', 'uuid4', function ($scope,
     // INIT
     ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    //$scope.cats = {};
-
-    angular.forEach($scope.categories, function (category, index) {
-        //category.removeWatchHandler = $scope.$watchCollection('categories[' + index + '].tasks', function (newValues, oldValues) {
-        //    //
-        //    // PROBLEM: when categories are re-ordered, the category and index within this closure become invalid
-        //    //
-        //    if (newValues !== oldValues) {
-        //        $log.warn(category.name + ' changed');
-        //        updateTaskProperties(category);
-        //    } else {
-        //        $log.warn(category.name + ' same');
-        //    }
-        //});
+    angular.forEach($scope.categories, function (category, categoryIndex) {
+        category.removeWatchHandler = $scope.$watch('categories[' + categoryIndex + '].tasks', function (newValues, oldValues) { // watch for task changes
+            if (newValues !== oldValues) {
+                $log.warn(category.name + ' changed');
+                angular.forEach(category.tasks, function (task) {
+                    $log.info(sprintf('%s(%s)', task.name, task.sequence));
+                });
+                // update persistent store
+                var categoryIndex = $scope.$storage.todo.categories.indexOf(category);
+                $scope.$storage.todo.categories[categoryIndex] = category;
+            }
+        }, true);
     });
+
+    setTimeout(function () { // wait until list is rendered
+        new Sortable(multi, { // create sortable for categories
+            draggable: '.tile',
+            handle: '.glyph-link-move',
+            onAdd: function (evt) {
+                $log.debug('category added');
+                Sortable.utils.stopPropagation(evt);
+            },
+            onUpdate: function (evt) {
+                $log.debug('category updated');
+                Sortable.utils.stopPropagation(evt);
+            },
+            onRemove: function (evt) {
+                $log.debug('category removed');
+                Sortable.utils.stopPropagation(evt);
+            }
+        });
+
+        [ ].forEach.call(multi.getElementsByClassName('list-group'), createSortable); // create sortable for tasks within a category
+    }, 500);
 
     // DEBUG
     ////////////////////////////////////////////////////////////////////////////////////////////////////
