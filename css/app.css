@@ -2,6 +2,14 @@ body {
     font-size: 13px;
     padding-top: 10px;
 }
+#multi { /* prevent text selection because it looks bad */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
 .col-md-2 {
     padding-left: 5px;
     padding-right: 5px;
@@ -21,6 +29,7 @@ body {
 }
 .panel-title {
     color: #DDD;
+    cursor: default;
     font-weight: 700;
     display: inline;
     font-size: inherit;
@@ -32,26 +41,13 @@ body {
 .list-group {
     margin-top: 5px;
     margin-bottom: 5px;
+    min-height: 1.5em;
 }
 .list-group-item {
     color: #0CE3AC;
     margin-bottom: 10px;
     padding: 5px;
     cursor: pointer;
-}
-.form-control, input {
-    color: #000;
-}
-.connectedSortableCategory { /* positioned so that dragging to the right doesn't show at top of page */
-    position: relative;
-    top: 0;
-    left: 0;
-}
-.connectedSortableTask {
-    min-height: 1.5em;
-}
-.list-group {
-    min-height: 1.5em;
 }
 .sortable-ghost {
     background-color: #375A7F;

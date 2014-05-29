@@ -8,7 +8,7 @@
     <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.min.css" rel="stylesheet">
     <link href="/css/app.css" rel="stylesheet">
 </head>
-<body ng-controller="TaskListCtrl">
+<body ng-controller="taskController">
     <div class="container-fluid">
         <div class="row" style="margin-bottom:10px;">
             <div class="col-md-2">
@@ -35,21 +35,21 @@
         </div>
         <div class="row">
             <div id="multi" ng-model="categories">
-                <div class="col-md-2 tile" ng-repeat="category in categories">
+                <div id="{{category.id}}" class="col-md-2 tile" ng-repeat="category in categories | orderBy:'sequence'"><!-- orderBy doesn't work if "track by" is specified -->
                     <div class="bs-component">
                         <div class="panel panel-primary">
                             <div class="panel-heading">
                                 <a href="#" class="glyph-link glyph-link-move" title="Move Category"><i class="fa fa-arrows"></i></a>
-                                <h3 class="panel-title">{{category.name}}</h3>
+                                <h3 class="panel-title">{{category.sequence}} : {{category.name}}</h3>
                                 <a href="#" class="glyph-link" title="Add Task" ng-click="addTask(category)"><i class="fa fa-plus fa-lg"></i></a>
                                 <a href="#" class="glyph-link" title="Delete Category" ng-click="removeCategory(category)"><i class="fa fa-trash-o"></i></a>
                             </div>
                             <div class="panel-body">
                                 <ul class="list-group" ng-model="category.tasks" data-index="{{$index}}"><!-- so we can use $scope.categories["data-index"] -->
-                                    <li id="{{task.id}}" class="list-group-item" ng-repeat="task in category.tasks | orderBy:'sequence'">
+                                    <li id="{{task.id}}" class="list-group-item" ng-repeat="task in category.tasks" data-index="{{$index}}">
                                         <i class="fa fa-arrows item-handle" style="vertical-align:top; margin-top:2px; margin-right:3px;"></i>
-                                        <div style="display:inline-block; width:16em;" ng-click="editTask(task)"><b>{{task.name}} ({{task.sequence}})</b> {{task.details}}</div>
-                                        <i class="fa fa-trash-o" style="position: absolute; top:8px; right:6px;" ng-click="removeTask(category, task)"></i>
+                                        <div style="display:inline-block; width:16em;" ng-click="editTask(task)">{{$index}} : <b>{{task.name}}</b> {{task.details}}</div>
+                                        <a href="#" title="Delete Task" ng-click="removeTask(category, task)" style="position: absolute; top:8px; right:6px;"><i class="fa fa-trash-o"></i></a>
                                     </li>
                                 </ul>
                             </div>
@@ -62,7 +62,7 @@
     <script src="//ajax.aspnetcdn.com/ajax/jQuery/jquery-2.1.0.min.js"></script>
     <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
     <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.15/angular.min.js"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/underscore.js/1.6.0/underscore-min.js"></script>
+    <script src="/js/underscore.min.js"></script>
     <script src="/js/uuid4.js"></script>
     <script src="/js/sortable.js"></script>
     <script src="/js/ngStorage.min.js"></script>
