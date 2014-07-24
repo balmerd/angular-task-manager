@@ -1,215 +1,506 @@
-/*
- jQuery UI Sortable plugin wrapper
- 
- https://github.com/angular-ui/ui-sortable
- http://stackoverflow.com/questions/21182297/handling-moving-of-item-across-lists-in-angular-ui-sortable
- http://stackoverflow.com/questions/21182297/handling-moving-of-item-across-lists-in-angular-ui-sortable
-
- @param [ui-sortable] {object} Options to pass to $.fn.sortable() merged onto ui.config
+/**!
+ * Sortable - https://github.com/RubaXa/Sortable
+ * @author	RubaXa   <trash@rubaxa.org>
+ * @license MIT
  */
-angular.module('ui.sortable', [])
-  .value('uiSortableConfig', {})
-  .directive('uiSortable', [
-    'uiSortableConfig', '$timeout', '$log',
-    function (uiSortableConfig, $timeout, $log) {
-        return {
-            require: '?ngModel',
-            link: function (scope, element, attrs, ngModel) {
-                var savedNodes;
 
-                function combineCallbacks(first, second) {
-                    if (second && (typeof second === 'function')) {
-                        return function (e, ui) {
-                            first(e, ui);
-                            second(e, ui);
-                        };
-                    }
-                    return first;
-                }
+(function (factory){
+	"use strict";
 
-                function hasSortingHelper(element) {
-                    var helperOption = element.sortable('option', 'helper');
-                    return helperOption === 'clone' || typeof helperOption === 'function';
-                }
+	if( typeof define === "function" && define.amd ){
+		define(factory);
+	}
+	else if( typeof module != "undefined" && typeof module.exports != "undefined" ){
+		module.exports = factory();
+	}
+	else {
+		window["Sortable"] = factory();
+	}
+})(function (){
+	"use strict";
 
-                var opts = {};
+	var
+		  dragEl
+		, ghostEl
+		, rootEl
+		, nextEl
 
-                var callbacks = {
-                    receive: null,
-                    remove: null,
-                    start: null,
-                    stop: null,
-                    update: null
-                };
+		, lastEl
+		, lastCSS
+		, lastRect
 
-                angular.extend(opts, uiSortableConfig);
+		, activeGroup
 
-                if (!angular.element.fn || !angular.element.fn.jquery) {
-                    $log.error('ui.sortable: jQuery should be included before AngularJS!');
-                    return;
-                }
+		, tapEvt
+		, touchEvt
 
-                if (ngModel) {
+		, expando = 'Sortable' + (new Date).getTime()
 
-                    // When we add or remove elements, we need the sortable to 'refresh'
-                    // so it can find the new/removed elements.
-                    scope.$watch(attrs.ngModel + '.length', function () {
-                        // Timeout to let ng-repeat modify the DOM
-                        $timeout(function () {
-                            // ensure that the jquery-ui-sortable widget instance
-                            // is still bound to the directive's element
-                            if (!!element.data('ui-sortable')) {
-                                element.sortable('refresh');
-                            }
-                        });
-                    });
+		, win = window
+		, document = win.document
+		, parseInt = win.parseInt
+		, supportIEdnd = !!document.createElement('div').dragDrop
 
-                    callbacks.start = function (e, ui) {
-                        // Save the starting position of dragged item
-                        ui.item.sortable = {
-                            index: ui.item.index(),
-                            cancel: function () {
-                                ui.item.sortable._isCanceled = true;
-                            },
-                            isCanceled: function () {
-                                return ui.item.sortable._isCanceled;
-                            },
-                            _isCanceled: false
-                        };
-                    };
+		, _silent = false
 
-                    callbacks.activate = function (/*e, ui*/) {
-                        // We need to make a copy of the current element's contents so
-                        // we can restore it after sortable has messed it up.
-                        // This is inside activate (instead of start) in order to save
-                        // both lists when dragging between connected lists.
-                        savedNodes = element.contents();
+		, _createEvent = function (event/**String*/, item/**HTMLElement*/){
+			var evt = document.createEvent('Event');
+			evt.initEvent(event, true, true);
+			evt.item = item;
+			return evt;
+		}
 
-                        // If this list has a placeholder (the connected lists won't),
-                        // don't inlcude it in saved nodes.
-                        var placeholder = element.sortable('option', 'placeholder');
+		, noop = function (){}
+		, slice = [].slice
 
-                        // placeholder.element will be a function if the placeholder, has
-                        // been created (placeholder will be an object).  If it hasn't
-                        // been created, either placeholder will be false if no
-                        // placeholder class was given or placeholder.element will be
-                        // undefined if a class was given (placeholder will be a string)
-                        if (placeholder && placeholder.element && typeof placeholder.element === 'function') {
-                            var phElement = placeholder.element();
-                            // workaround for jquery ui 1.9.x,
-                            // not returning jquery collection
-                            phElement = angular.element(phElement);
+		, touchDragOverListeners = []
+	;
 
-                            // exact match with the placeholder's class attribute to handle
-                            // the case that multiple connected sortables exist and
-                            // the placehoilder option equals the class of sortable items
-                            var excludes = element.find('[class="' + phElement.attr('class') + '"]');
+	/**
+	 * @class  Sortable
+	 * @param  {HTMLElement}  el
+	 * @param  {Object}  [options]
+	 * @constructor
+	 */
+	function Sortable(el, options){
+		this.el = el; // root element
+		this.options = options = (options || {});
 
-                            savedNodes = savedNodes.not(excludes);
-                        }
-                    };
+		// Defaults
+		options.group = options.group || Math.random();
+		options.handle = options.handle || null;
+		options.draggable = options.draggable || el.children[0] && el.children[0].nodeName || (/[uo]l/i.test(el.nodeName) ? 'li' : '*');
+		options.ghostClass = options.ghostClass || 'sortable-ghost';
 
-                    callbacks.update = function (e, ui) {
-                        // Save current drop position but only if this is not a second
-                        // update that happens when moving between lists because then
-                        // the value will be overwritten with the old value
+		options.onAdd = _bind(this, options.onAdd || noop);
+		options.onUpdate = _bind(this, options.onUpdate || noop);
+		options.onRemove = _bind(this, options.onRemove || noop);
 
-                        if (!ui.item.sortable.received) {
-                            ui.item.sortable.dropindex = ui.item.index();
-                            ui.item.sortable.droptarget = ui.item.parent();
+		// Export group name
+		el[expando] = options.group;
 
-                            // Cancel the sort (let ng-repeat do the sort for us)
-                            // Don't cancel if this is the received list because it has
-                            // already been canceled in the other list, and trying to cancel
-                            // here will mess up the DOM.
-                            element.sortable('cancel');
-                        }
+		// Bind all private methods
+		for( var fn in this ){
+			if( fn.charAt(0) === '_' ){
+				this[fn] = _bind(this, this[fn]);
+			}
+		}
 
-                        // Put the nodes back exactly the way they started (this is very
-                        // important because ng-repeat uses comment elements to delineate
-                        // the start and stop of repeat sections and sortable doesn't
-                        // respect their order (even if we cancel, the order of the
-                        // comments are still messed up).
-                        if (hasSortingHelper(element)) {
-                            // restore all the savedNodes except .ui-sortable-helper element
-                            // (which is placed last). That way it will be garbage collected.
-                            savedNodes = savedNodes.not(savedNodes.last());
-                        }
-                        savedNodes.appendTo(element);
+		// Bind events
+		_on(el, 'add', options.onAdd);
+		_on(el, 'update', options.onUpdate);
+		_on(el, 'remove', options.onRemove);
 
-                        // If received is true (an item was dropped in from another list)
-                        // then we add the new item to this list otherwise wait until the
-                        // stop event where we will know if it was a sort or item was
-                        // moved here from another list
-                        if (ui.item.sortable.received && !ui.item.sortable.isCanceled()) {
-                            scope.$apply(function () {
-                                ngModel.$modelValue.splice(ui.item.sortable.dropindex, 0, ui.item.sortable.moved);
-                            });
-                        }
-                    };
+		_on(el, 'mousedown', this._onTapStart);
+		_on(el, 'touchstart', this._onTapStart);
+		supportIEdnd && _on(el, 'selectstart', this._onTapStart);
 
-                    callbacks.stop = function (e, ui) {
-                        // If the received flag hasn't be set on the item, this is a
-                        // normal sort, if dropindex is set, the item was moved, so move
-                        // the items in the list.
-                        if (!ui.item.sortable.received && ('dropindex' in ui.item.sortable) && !ui.item.sortable.isCanceled()) {
-                            scope.$apply(function () {
-                                ngModel.$modelValue.splice(ui.item.sortable.dropindex, 0, ngModel.$modelValue.splice(ui.item.sortable.index, 1)[0]);
-                            });
-                        } else {
-                            // if the item was not moved, then restore the elements
-                            // so that the ngRepeat's comment are correct.
-                            if ((!('dropindex' in ui.item.sortable) || ui.item.sortable.isCanceled()) && !hasSortingHelper(element)) {
-                                savedNodes.appendTo(element);
-                            }
-                        }
-                    };
+		_on(el, 'dragover', this._onDragOver);
+		_on(el, 'dragenter', this._onDragOver);
 
-                    callbacks.receive = function (e, ui) {
-                        // An item was dropped here from another list, set a flag on the item.
-                        ui.item.sortable.received = true;
-                    };
+		touchDragOverListeners.push(this._onDragOver);
+	}
 
-                    callbacks.remove = function (e, ui) {
-                        // Remove the item from this list's model and copy data into item,
-                        // so the next list can retrive it
-                        if (!ui.item.sortable.isCanceled()) {
-                            scope.$apply(function () {
-                                ui.item.sortable.moved = ngModel.$modelValue.splice(ui.item.sortable.index, 1)[0];
-                            });
-                        }
-                    };
+	Sortable.prototype = {
+		constructor: Sortable,
 
-                    scope.$watch(attrs.uiSortable, function (newVal /*, oldVal*/) {
-                        // ensure that the jquery-ui-sortable widget instance
-                        // is still bound to the directive's element
-                        if (!!element.data('ui-sortable')) {
-                            angular.forEach(newVal, function (value, key) {
-                                if (callbacks[key]) {
-                                    if (key === 'stop') {
-                                        // call apply after stop
-                                        value = combineCallbacks(value, function () { scope.$apply(); });
-                                    }
-                                    // wrap the callback
-                                    value = combineCallbacks(callbacks[key], value);
-                                }
+		_applyEffects: function (){
+			_toggleClass(dragEl, this.options.ghostClass, true);
+		},
 
-                                element.sortable('option', key, value);
-                            });
-                        }
-                    }, true);
+		_onTapStart: function (evt/**Event|TouchEvent*/){
+			var
+				  touch = evt.touches && evt.touches[0]
+				, target = (touch || evt).target
+				, options =  this.options
+				, el = this.el
+			;
 
-                    angular.forEach(callbacks, function (value, key) {
-                        opts[key] = combineCallbacks(value, opts[key]);
-                    });
+			if( options.handle ){
+				target = _closest(target, options.handle, el);
+			}
 
-                } else {
-                    $log.info('ui.sortable: ngModel not provided!', element);
-                }
+			target = _closest(target, options.draggable, el);
 
-                // Create sortable
-                element.sortable(opts);
-            }
-        };
-    }
-  ]);
+			// IE 9 Support
+			if( target && evt.type == 'selectstart' ){
+				if( target.tagName != 'A' && target.tagName != 'IMG'){
+					target.dragDrop();
+				}
+			}
+
+			if( target && !dragEl && (target.parentNode === el) ){
+				tapEvt = evt;
+				target.draggable = true;
+
+				// Disable "draggable"
+				_find(target, 'a', _disableDraggable);
+				_find(target, 'img', _disableDraggable);
+
+				if( touch ){
+					// Touch device support
+					tapEvt = {
+						  target:  target
+						, clientX: touch.clientX
+						, clientY: touch.clientY
+					};
+					this._onDragStart(tapEvt, true);
+					evt.preventDefault();
+				}
+
+				_on(this.el, 'dragstart', this._onDragStart);
+				_on(this.el, 'dragend', this._onDrop);
+				_on(document, 'dragover', _globalDragOver);
+
+				try {
+					if( document.selection ){
+						document.selection.empty();
+					} else {
+						window.getSelection().removeAllRanges()
+					}
+				} catch (err){ }
+			}
+		},
+
+		_emulateDragOver: function (){
+			if( touchEvt ){
+				_css(ghostEl, 'display', 'none');
+
+				var
+					  target = document.elementFromPoint(touchEvt.clientX, touchEvt.clientY)
+					, parent = target
+					, group = this.options.group
+					, i = touchDragOverListeners.length
+				;
+
+				if( parent ){
+					do {
+						if( parent[expando] === group ){
+							while( i-- ){
+								touchDragOverListeners[i]({
+									clientX: touchEvt.clientX,
+									clientY: touchEvt.clientY,
+									target: target,
+									rootEl: parent
+								});
+							}
+							break;
+						}
+
+						target = parent; // store last element
+					}
+					while( parent = parent.parentNode );
+				}
+
+				_css(ghostEl, 'display', '');
+			}
+		},
+
+		_onTouchMove: function (evt/**TouchEvent*/){
+			if( tapEvt ){
+				var
+					  touch = evt.touches[0]
+					, dx = touch.clientX - tapEvt.clientX
+					, dy = touch.clientY - tapEvt.clientY
+				;
+
+				touchEvt = touch;
+				_css(ghostEl, 'webkitTransform', 'translate3d('+dx+'px,'+dy+'px,0)');
+			}
+		},
+
+		_onDragStart: function (evt/**Event*/, isTouch/**Boolean*/){
+			var
+				  target = evt.target
+				, dataTransfer = evt.dataTransfer
+			;
+
+			rootEl = this.el;
+			dragEl = target;
+			nextEl = target.nextSibling;
+			activeGroup = this.options.group;
+
+			if( isTouch ){
+				var
+					  rect = target.getBoundingClientRect()
+					, css = _css(target)
+					, ghostRect
+				;
+
+				ghostEl = target.cloneNode(true);
+
+				_css(ghostEl, 'top', rect.top - parseInt(css.marginTop, 10));
+				_css(ghostEl, 'left', rect.left - parseInt(css.marginLeft, 10));
+				_css(ghostEl, 'width', rect.width);
+				_css(ghostEl, 'height', rect.height);
+				_css(ghostEl, 'opacity', '0.8');
+				_css(ghostEl, 'position', 'fixed');
+				_css(ghostEl, 'zIndex', '100000');
+
+				rootEl.appendChild(ghostEl);
+
+				// Fixing dimensions.
+				ghostRect = ghostEl.getBoundingClientRect();
+				_css(ghostEl, 'width', rect.width*2 - ghostRect.width);
+				_css(ghostEl, 'height', rect.height*2 - ghostRect.height);
+
+				// Bind touch events
+				_on(document, 'touchmove', this._onTouchMove);
+				_on(document, 'touchend', this._onDrop);
+
+				this._loopId = setInterval(this._emulateDragOver, 150);
+			}
+			else {
+				dataTransfer.effectAllowed = 'move';
+				dataTransfer.setData('Text', target.textContent);
+
+				_on(document, 'drop', this._onDrop);
+			}
+
+			setTimeout(this._applyEffects);
+		},
+
+		_onDragOver: function (evt/**Event*/){
+			if( !_silent && (activeGroup === this.options.group) && (evt.rootEl === void 0 || evt.rootEl === this.el) ){
+				var
+					  el = this.el
+					, target = _closest(evt.target, this.options.draggable, el)
+				;
+
+				if( el.children.length === 0 || el.children[0] === ghostEl || (el === evt.target) && _ghostInBottom(el, evt) ){
+					el.appendChild(dragEl);
+				}
+				else if( target && target !== dragEl && (target.parentNode[expando] !== void 0) ){
+
+					if( lastEl !== target ){
+						lastEl = target;
+						lastCSS = _css(target);
+						lastRect = target.getBoundingClientRect();
+					}
+
+					var
+						  rect = lastRect
+						, width = rect.right - rect.left
+						, height = rect.bottom - rect.top
+						, floating = /left|right|inline/.test(lastCSS.cssFloat + lastCSS.display)
+						, skew = (floating ? (evt.clientX - rect.left)/width : (evt.clientY - rect.top)/height) > .5
+						, isWide = (target.offsetWidth > dragEl.offsetWidth)
+						, isLong = (target.offsetHeight > dragEl.offsetHeight)
+						, nextSibling = target.nextSibling
+						, after
+					;
+
+					_silent = true;
+					setTimeout(_unsilent, 30);
+
+					if( floating ){
+						after = (target.previousElementSibling === dragEl) && !isWide || (skew > .5) && isWide
+					} else {
+						after = (target.nextElementSibling !== dragEl) && !isLong || (skew > .5) && isLong;
+					}
+
+					if( after && !nextSibling ){
+						el.appendChild(dragEl);
+					} else {
+						target.parentNode.insertBefore(dragEl, after ? nextSibling : target);
+					}
+				}
+			}
+		},
+
+		_onDrop: function (evt/**Event*/){
+			clearInterval(this._loopId);
+
+			// Unbind events
+			_off(document, 'drop', this._onDrop);
+			_off(document, 'dragover', _globalDragOver);
+
+			_off(this.el, 'dragend', this._onDrop);
+			_off(this.el, 'dragstart', this._onDragStart);
+			_off(this.el, 'selectstart', this._onTapStart);
+
+			_off(document, 'touchmove', this._onTouchMove);
+			_off(document, 'touchend', this._onDrop);
+
+			if( evt ){
+				evt.preventDefault();
+				evt.stopPropagation();
+
+				if( ghostEl ){
+					ghostEl.parentNode.removeChild(ghostEl);
+				}
+
+				if( dragEl ){
+					_disableDraggable(dragEl);
+					_toggleClass(dragEl, this.options.ghostClass, false);
+
+					if( !rootEl.contains(dragEl) ){
+						// Remove event
+						rootEl.dispatchEvent(_createEvent('remove', dragEl));
+
+						// Add event
+						dragEl.dispatchEvent(_createEvent('add', dragEl));
+					}
+					else if( dragEl.nextSibling !== nextEl ){
+						// Update event
+						dragEl.dispatchEvent(_createEvent('update', dragEl));
+					}
+				}
+
+				// Set NULL
+				rootEl =
+				dragEl =
+				ghostEl =
+				nextEl =
+
+				tapEvt =
+				touchEvt =
+
+				lastEl =
+				lastCSS =
+
+				activeGroup = null;
+			}
+		},
+
+		destroy: function (){
+			var el = this.el, options = this.options;
+
+			_off(el, 'add', options.onAdd);
+			_off(el, 'update', options.onUpdate);
+			_off(el, 'remove', options.onRemove);
+
+			_off(el, 'mousedown', this._onTapStart);
+			_off(el, 'touchstart', this._onTapStart);
+			_off(el, 'selectstart', this._onTapStart);
+
+			_off(el, 'dragover', this._onDragOver);
+			_off(el, 'dragenter', this._onDragOver);
+
+			//remove draggable attributes
+			Array.prototype.forEach.call(el.querySelectorAll('[draggable]'), function(el) {
+				el.removeAttribute('draggable');
+			});
+
+			touchDragOverListeners.splice(touchDragOverListeners.indexOf(this._onDragOver), 1);
+
+			this._onDrop();
+
+			this.el = null;
+		}
+	};
+
+	function _bind(ctx, fn){
+		var args = slice.call(arguments, 2);
+		return	fn.bind ? fn.bind.apply(fn, [ctx].concat(args)) : function (){
+			return fn.apply(ctx, args.concat(slice.call(arguments)));
+		};
+	}
+
+	function _closest(el, selector, ctx){
+		if( selector === '*' ){
+			return el;
+		}
+		else if( el ){
+			ctx = ctx || document;
+			selector = selector.split('.');
+
+			var
+				  tag = selector.shift().toUpperCase()
+				, re = new RegExp('\\s('+selector.join('|')+')\\s', 'g')
+			;
+
+			do {
+				if( (tag === '' || el.nodeName == tag) && (!selector.length || ((' '+el.className+' ').match(re) || []).length == selector.length) ){
+					return	el;
+				}
+			}
+			while( el !== ctx && (el = el.parentNode) );
+		}
+
+		return	null;
+	}
+
+	function _globalDragOver(evt){
+		evt.dataTransfer.dropEffect = 'move';
+		evt.preventDefault();
+	}
+
+	function _on(el, event, fn){
+		el.addEventListener(event, fn, false);
+	}
+
+	function _off(el, event, fn){
+		el.removeEventListener(event, fn, false);
+	}
+
+	function _toggleClass(el, name, state){
+		if( el ){
+			if( el.classList ){
+				el.classList[state ? 'add' : 'remove'](name);
+			}
+			else {
+				var className = (' '+el.className+' ').replace(/\s+/g, ' ').replace(' '+name+' ', '');
+				el.className = className + (state ? ' '+name : '')
+			}
+		}
+	}
+
+	function _css(el, prop, val){
+		if( el && el.style ){
+			if( val === void 0 ){ // "void 0" is a cross-browser version of undefined
+				if( document.defaultView && document.defaultView.getComputedStyle ){
+					val = document.defaultView.getComputedStyle(el, '');
+				}
+				else if( el.currentStyle ){
+					val	= el.currentStyle;
+				}
+				return	prop === void 0 ? val : val[prop];
+			} else {
+				el.style[prop] = val + (typeof val === 'string' ? '' : 'px');
+			}
+		}
+	}
+
+	function _find(ctx, tagName, iterator){
+		if( ctx ){
+			var list = ctx.getElementsByTagName(tagName), i = 0, n = list.length;
+			if( iterator ){
+				for( ; i < n; i++ ){
+					iterator(list[i], i);
+				}
+			}
+			return	list;
+		}
+		return	[];
+	}
+
+	function _disableDraggable(el){
+		return el.draggable = false;
+	}
+
+	function _unsilent(){
+		_silent = false;
+	}
+
+	function _ghostInBottom(el, evt){
+		var last = el.lastElementChild.getBoundingClientRect();
+		return evt.clientY - (last.top + last.height) > 5; // min delta
+	}
+
+	// Export utils
+	Sortable.utils = {
+		on: _on,
+		off: _off,
+		css: _css,
+		find: _find,
+		bind: _bind,
+		closest: _closest,
+		toggleClass: _toggleClass
+	};
+
+	Sortable.version = '0.1.9';
+
+	// Export
+	return	Sortable;
+});

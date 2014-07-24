@@ -2,15 +2,42 @@ body {
     font-size: 13px;
     padding-top: 10px;
 }
-.col-md-2 {
+#taskboard { /* prevent text selection because it looks bad */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+#taskDetails {
+    margin-top: 1em;
+}
+input.full-width {
+    width: 100%; 
+    padding: 2px;
+    margin-bottom: 0.5em;
+}
+.col-md-2 { /* Bootstrap Grid System */
     padding-left: 5px;
     padding-right: 5px;
 }
-.panel-heading {
+.row.toolbar { /* .row is Bootstrap Grid System */
+    margin-bottom: 10px;
+}
+.panel-title { /* Bootstrap Panel */
+    color: #DDD;
+    cursor: default;
+    font-weight: 700;
+    display: inline;
+    font-size: inherit;
+    text-transform: uppercase;
+}
+.panel-heading { /* Bootstrap Panel */
     position: relative;
     padding: 10px;
 }
-.panel-heading .glyph-link {
+.panel-heading .glyph-link { /* .panel-heading is Bootstrap Panel */
     float: right;
     padding-left: 10px;
 }
@@ -19,29 +46,38 @@ body {
     padding-left: 0;
     padding-right: 5px;
 }
-.panel-title {
-    color: #DDD;
-    font-weight: 700;
-    display: inline;
-    font-size: inherit;
-    text-transform: uppercase;
-}
-.panel-body {
+.panel-body { /* Bootstrap Panel */
     padding: 5px;
 }
-.list-group {
+.list-group { /* Bootstrap List Group */
     margin-top: 5px;
     margin-bottom: 5px;
+    min-height: 1.5em;
 }
-.list-group-item {
+.list-group-item { /* Bootstrap List Group */
     color: #0CE3AC;
     margin-bottom: 10px;
     padding: 5px;
     cursor: pointer;
 }
-.form-control, input {
-    color: #000;
+.item-handle {
+    vertical-align: top;
+    margin-top: 2px;
+    margin-right: 3px;
 }
-.connectedSortableTask {
-    min-height: 1.5em;
+.task-info {
+    display: inline-block;
+    width: 16em;
+    word-wrap: break-word;
+}
+.delete-task {
+    position: absolute; 
+    right: 6px;
+}
+.category-item {
+    background-color: #222 !important;
+}
+.sortable-ghost { /* used by sortable.js */
+    background-color: #375A7F;
+    opacity: 0.5;
 }
