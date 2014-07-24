@@ -15,8 +15,6 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
     var taskboard = document.getElementById('taskboard');
 
     var $taskDialog = $('#task-dialog');
-    var $categoryDialog = $('#category-dialog');
-    var $collectionDialog = $('#collection-dialog');
 
     var $taskName = $('input[name=taskName]');
     var $taskDetails = $('input[name=taskDetails]');
@@ -25,6 +23,12 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
 
     $scope.currentTask;
     $scope.currentCategory;
+
+    $scope.nameDialog = {
+        title: 'Create Category',
+        prompt: 'Enter Category Name',
+        onSave: $.noop
+    };
 
     $scope.$storage = $localStorage;
 
@@ -203,17 +207,57 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
     };
 
     $scope.addCollection = function () {
-        $collectionName.val('');
-        $collectionDialog.on('shown.bs.modal', function (e) {
-            $collectionName.focus();
-        }).modal('show');
+        $scope.nameDialog = {
+            title: 'Create Collection',
+            prompt: 'Enter Collection Name',
+            onSave: function (collectionName) {
+                if (collectionName.length) {
+                    // TODO: verify that collectionName name doesn't already exist
+
+                    $scope.collections.list.push(collectionName); // add to dropdown
+                    $scope.collections[collectionName] = []; // add collection with empty tasks list
+                }
+            }
+        };
+
+        $('#name-dialog').modal('show');
     };
 
     $scope.addCategory = function () {
-        $categoryName.val('');
-        $categoryDialog.on('shown.bs.modal', function (e) {
-            $categoryName.focus();
-        }).modal('show');
+        $scope.nameDialog = {
+            title: 'Create Category',
+            prompt: 'Enter Category Name',
+            onSave: function (categoryName) {
+                var categoryIndex = $scope.categories.length;
+
+                if (categoryName.length) {
+                    $log.warn(sprintf('New category name is %s', categoryName));
+
+                    // TODO: verify that category name doesn't already exist
+
+                    var category = {
+                        id: uuid4.generate(),
+                        sequence: categoryIndex,
+                        name: categoryName,
+                        tasks: []
+                    };
+
+                    $scope.categories.push(category);
+
+                    category.removeWatchHandler = $scope.$watchCollection('categories[' + categoryIndex + '].tasks', function (newValues, oldValues) { // watch for changes
+                        if (newValues !== oldValues) {
+                            $log.warn(sprintf('category[%s].tasks changed', this.scope.categories[categoryIndex].name));
+                        }
+                    });
+
+                    setTimeout(function () { // wait for render
+                        createSortable(taskboard.getElementsByClassName('list-group')[categoryIndex]);
+                    }, 0)
+                }
+            }
+        };
+
+        $('#name-dialog').modal('show');
     };
 
     $scope.addTask = function (category) {
@@ -240,54 +284,6 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
         }).modal('show');
         // TODO: need to tell enteredTask() that we're updating, not adding
     };
-
-    $scope.enteredCollection = function () {
-        var categoryIndex = $scope.categories.length;
-        var collectionName = $collectionName.val().trim();
-
-        $collectionDialog.modal('hide');
-
-        if (collectionName.length) {
-            $log.warn(sprintf('New collection name is %s', collectionName));
-
-            // TODO: verify that collectionName name doesn't already exist
-
-            $scope.collections.list.push(collectionName);
-            $scope.collections[collectionName] = [];
-        }
-    }
-
-    $scope.enteredCategory = function () {
-        var categoryIndex = $scope.categories.length;
-        var categoryName = $categoryName.val().trim();
-
-        $categoryDialog.modal('hide');
-
-        if (categoryName.length) {
-            $log.warn(sprintf('New category name is %s', categoryName));
-
-            // TODO: verify that category name doesn't already exist
-
-            var category = {
-                id: uuid4.generate(),
-                sequence: categoryIndex,
-                name: categoryName,
-                tasks: []
-            };
-
-            $scope.categories.push(category);
-
-            category.removeWatchHandler = $scope.$watchCollection('categories[' + categoryIndex + '].tasks', function (newValues, oldValues) { // watch for changes
-                if (newValues !== oldValues) {
-                    $log.warn(sprintf('category[%s].tasks changed', this.scope.categories[categoryIndex].name));
-                }
-            });
-
-            setTimeout(function () { // wait for render
-                createSortable(taskboard.getElementsByClassName('list-group')[categoryIndex]);
-            }, 0)
-        }
-    }
 
     $scope.enteredTask = function () {
         var taskName = $taskName.val().trim();
