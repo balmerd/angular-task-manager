@@ -1,10 +1,8 @@
 /**!
  * Sortable - https://github.com/RubaXa/Sortable
  * @author	RubaXa   <trash@rubaxa.org>
- * @modified dbalmer
  * @license MIT
  */
-
 
 (function (factory){
 	"use strict";
@@ -58,7 +56,6 @@
 		, touchDragOverListeners = []
 	;
 
-
 	/**
 	 * @class  Sortable
 	 * @param  {HTMLElement}  el
@@ -68,7 +65,6 @@
 	function Sortable(el, options){
 		this.el = el; // root element
 		this.options = options = (options || {});
-
 
 		// Defaults
 		options.group = options.group || Math.random();
@@ -80,10 +76,8 @@
 		options.onUpdate = _bind(this, options.onUpdate || noop);
 		options.onRemove = _bind(this, options.onRemove || noop);
 
-
 		// Export group name
 		el[expando] = options.group;
-
 
 		// Bind all private methods
 		for( var fn in this ){
@@ -91,7 +85,6 @@
 				this[fn] = _bind(this, this[fn]);
 			}
 		}
-
 
 		// Bind events
 		_on(el, 'add', options.onAdd);
@@ -108,15 +101,12 @@
 		touchDragOverListeners.push(this._onDragOver);
 	}
 
-
 	Sortable.prototype = {
 		constructor: Sortable,
-
 
 		_applyEffects: function (){
 			_toggleClass(dragEl, this.options.ghostClass, true);
 		},
-
 
 		_onTapStart: function (evt/**Event|TouchEvent*/){
 			var
@@ -143,11 +133,9 @@
 				tapEvt = evt;
 				target.draggable = true;
 
-
 				// Disable "draggable"
 				_find(target, 'a', _disableDraggable);
 				_find(target, 'img', _disableDraggable);
-
 
 				if( touch ){
 					// Touch device support
@@ -160,11 +148,9 @@
 					evt.preventDefault();
 				}
 
-
 				_on(this.el, 'dragstart', this._onDragStart);
 				_on(this.el, 'dragend', this._onDrop);
 				_on(document, 'dragover', _globalDragOver);
-
 
 				try {
 					if( document.selection ){
@@ -175,7 +161,6 @@
 				} catch (err){ }
 			}
 		},
-
 
 		_emulateDragOver: function (){
 			if( touchEvt ){
@@ -211,7 +196,6 @@
 			}
 		},
 
-
 		_onTouchMove: function (evt/**TouchEvent*/){
 			if( tapEvt ){
 				var
@@ -224,7 +208,6 @@
 				_css(ghostEl, 'webkitTransform', 'translate3d('+dx+'px,'+dy+'px,0)');
 			}
 		},
-
 
 		_onDragStart: function (evt/**Event*/, isTouch/**Boolean*/){
 			var
@@ -277,7 +260,6 @@
 			setTimeout(this._applyEffects);
 		},
 
-
 		_onDragOver: function (evt/**Event*/){
 			if( !_silent && (activeGroup === this.options.group) && (evt.rootEl === void 0 || evt.rootEl === this.el) ){
 				var
@@ -289,12 +271,12 @@
 					el.appendChild(dragEl);
 				}
 				else if( target && target !== dragEl && (target.parentNode[expando] !== void 0) ){
+
 					if( lastEl !== target ){
 						lastEl = target;
 						lastCSS = _css(target);
 						lastRect = target.getBoundingClientRect();
 					}
-
 
 					var
 						  rect = lastRect
@@ -326,7 +308,6 @@
 			}
 		},
 
-
 		_onDrop: function (evt/**Event*/){
 			clearInterval(this._loopId);
 
@@ -340,7 +321,6 @@
 
 			_off(document, 'touchmove', this._onTouchMove);
 			_off(document, 'touchend', this._onDrop);
-
 
 			if( evt ){
 				evt.preventDefault();
@@ -383,7 +363,6 @@
 			}
 		},
 
-
 		destroy: function (){
 			var el = this.el, options = this.options;
 
@@ -411,14 +390,12 @@
 		}
 	};
 
-
 	function _bind(ctx, fn){
 		var args = slice.call(arguments, 2);
 		return	fn.bind ? fn.bind.apply(fn, [ctx].concat(args)) : function (){
 			return fn.apply(ctx, args.concat(slice.call(arguments)));
 		};
 	}
-
 
 	function _closest(el, selector, ctx){
 		if( selector === '*' ){
@@ -434,10 +411,7 @@
 			;
 
 			do {
-				if(
-					   (tag === '' || el.nodeName == tag)
-					&& (!selector.length || ((' '+el.className+' ').match(re) || []).length == selector.length)
-				){
+				if( (tag === '' || el.nodeName == tag) && (!selector.length || ((' '+el.className+' ').match(re) || []).length == selector.length) ){
 					return	el;
 				}
 			}
@@ -447,22 +421,18 @@
 		return	null;
 	}
 
-
 	function _globalDragOver(evt){
 		evt.dataTransfer.dropEffect = 'move';
 		evt.preventDefault();
 	}
 
-
 	function _on(el, event, fn){
 		el.addEventListener(event, fn, false);
 	}
 
-
 	function _off(el, event, fn){
 		el.removeEventListener(event, fn, false);
 	}
-
 
 	function _toggleClass(el, name, state){
 		if( el ){
@@ -476,10 +446,9 @@
 		}
 	}
 
-
 	function _css(el, prop, val){
 		if( el && el.style ){
-			if( val === void 0 ){
+			if( val === void 0 ){ // "void 0" is a cross-browser version of undefined
 				if( document.defaultView && document.defaultView.getComputedStyle ){
 					val = document.defaultView.getComputedStyle(el, '');
 				}
@@ -492,7 +461,6 @@
 			}
 		}
 	}
-
 
 	function _find(ctx, tagName, iterator){
 		if( ctx ){
@@ -507,29 +475,18 @@
 		return	[];
 	}
 
-
 	function _disableDraggable(el){
 		return el.draggable = false;
 	}
-
 
 	function _unsilent(){
 		_silent = false;
 	}
 
-
 	function _ghostInBottom(el, evt){
 		var last = el.lastElementChild.getBoundingClientRect();
 		return evt.clientY - (last.top + last.height) > 5; // min delta
 	}
-
-    function _stopPropagation(evt) { // added by dbalmer
-        if (typeof evt.stopPropagation != 'undefined') {
-            evt.stopPropagation();
-        } else {
-            evt.cancelBubble = true;
-        }
-    }
 
 	// Export utils
 	Sortable.utils = {
@@ -539,10 +496,8 @@
 		find: _find,
 		bind: _bind,
 		closest: _closest,
-		toggleClass: _toggleClass,
-        stopPropagation: _stopPropagation
+		toggleClass: _toggleClass
 	};
-
 
 	Sortable.version = '0.1.9';
 

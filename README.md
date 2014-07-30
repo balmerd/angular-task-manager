@@ -1,10 +1,10 @@
 # Angular Task Board
 
-Prototype of TaskBoard using angular
+TaskBoard using Angular.js and Bootstrap
 
 ## Requirements
 
 - JQuery
-- JQueryUI
 - AngularJS
+- ngStorage
 - Bootstrap
