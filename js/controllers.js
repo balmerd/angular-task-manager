@@ -15,7 +15,6 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
     var taskboard = document.getElementById('taskboard');
 
     var $taskDialog = $('#task-dialog');
-
     var $taskName = $('input[name=taskName]');
     var $taskDetails = $('input[name=taskDetails]');
 
@@ -179,16 +178,6 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
     // METHODS
     ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    $scope.dumpStorageCategories = function () {
-        console.clear();
-        $scope.$storage.collections[$scope.$storage.collections.current].forEach(function (cat, index) {
-            $log.warn(sprintf('#%s : %s %s', cat.sequence, cat.id, cat.name));
-            cat.tasks.forEach(function (task, index) {
-                $log.log(task.id + ' ' + task.name);
-            });
-        });
-    };
-
     function validateName(context, name) {
         var obj, validation;
         if (name && name.length) {
@@ -344,6 +333,7 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
         // TODO: need to remove watch handlers?
 
         // delete the collection
+
         //delete $scope.$storage.collections[$scope.$storage.collections.current];
 
         if (!$scope.$storage.collections.list.length === 1) {
