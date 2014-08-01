@@ -15,11 +15,11 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
     var taskboard = document.getElementById('taskboard');
 
     var $taskDialog = $('#task-dialog');
+
     var $taskName = $('input[name=taskName]');
     var $taskDetails = $('input[name=taskDetails]');
 
     $scope.nameDialog = null;
-
     $scope.currentTask = null;
     $scope.currentCategory = null;
 
@@ -32,35 +32,12 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
     // HELPERS
     ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    function initializeCurrentCollection() {
-        if (!$scope.$storage.collections) {
-            $scope.$storage.collections = {
-                current: 'test',
-                list: ['test'], // shows up in the dropdown
-                test: createMockCategoriesAndTasks()
-            };
-        }
-
-        // create alias for persistent collections
-        $scope.collections = $scope.$storage.collections;
-
-        // sort categories so that they render in the correct sequence
-        // _.sortBy returns a copy of the collection, so saying $scope.categories = _.sortBy($scope.collections...) will break connection with $scope.collections
-        $scope.collections[$scope.collections.current] = _.sortBy($scope.collections[$scope.collections.current], function (category) { return category.sequence; });
-
-        // create alias for current collection
-        $scope.categories = $scope.collections[$scope.collections.current];
-
-        $log.info($scope.categories === $scope.collections[$scope.collections.current]);
-        $log.info($scope.categories === $scope.$storage.collections[$scope.$storage.collections.current]);
-    }
-
     function createMockCategoriesAndTasks() {
         return [
             {
                 id: uuid4.generate(),
-                sequence: 0,
                 name: 'California',
+                sequence: 0,
                 tasks: [
                     { id: uuid4.generate(), name: 'Hiking', details: 'on Mt. Tamalpais' },
                     { id: uuid4.generate(), name: 'Camping', details: 'in Carson Pass' },
@@ -69,14 +46,26 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
             },
             {
                 id: uuid4.generate(),
-                sequence: 1,
                 name: 'Toronto',
+                sequence: 1,
                 tasks: [
                     { id: uuid4.generate(), name: 'Fishing', details: 'at the Cottage' },
                     { id: uuid4.generate(), name: 'Biking', details: 'at the Island' }
                 ]
             }
         ];
+    }
+
+    function initializeCurrentCollection() {
+        //$scope.$storage.$reset();
+
+        if (!$scope.$storage.collections) {
+            $scope.$storage.collections = {
+                list: ['test'],
+                current: 'test',
+                test: createMockCategoriesAndTasks()
+            };
+        }
     }
 
     function sprintf() {
@@ -190,16 +179,6 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
     // METHODS
     ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    $scope.dumpScopeCategories = function () {
-        console.clear();
-        $scope.categories.forEach(function (cat, index) {
-            $log.warn(sprintf('#%s : %s %s', cat.sequence, cat.id, cat.name));
-            cat.tasks.forEach(function (task, index) {
-                $log.log(task.id + ' ' + task.name);
-            });
-        });
-    };
-
     $scope.dumpStorageCategories = function () {
         console.clear();
         $scope.$storage.collections[$scope.$storage.collections.current].forEach(function (cat, index) {
@@ -210,19 +189,12 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
         });
     };
 
-    $scope.restoreMockData = function () {
-        $scope.$storage.$reset();
-        // TODO: why does this cause TASK drag and drop to become unbound? CATEGORY drag and drop is still ok
-        $scope.collections.current = 'test';
-        $scope.categories = $scope.collections[$scope.collections.current] = createMockCategoriesAndTasks();
-    };
-
     function validateName(context, name) {
         var obj, validation;
         if (name && name.length) {
-            if (context === $scope.collections) {
+            if (context === $scope.$storage.collections) {
                 obj = context[name];
-            } else if (context === $scope.categories) {
+            } else if (context === $scope.$storage.collections[$scope.$storage.collections.current]) {
                 obj = _.find(context, function (item) {
                     return item.name.toUpperCase() === name.toUpperCase();
                 });
@@ -249,13 +221,13 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
             title: 'Create Collection',
             prompt: 'Enter Collection Name',
             onValidate: function (collectionName) {
-                return validateName($scope.collections, collectionName);
+                return validateName($scope.$storage.collections, collectionName);
             },
             onSave: function (collectionName) {
                 if (collectionName.length) {
 
-                    $scope.collections.list.push(collectionName); // add to dropdown
-                    $scope.collections[collectionName] = []; // add collection with empty tasks list
+                    $scope.$storage.collections.list.push(collectionName); // add to dropdown
+                    $scope.$storage.collections[collectionName] = []; // add collection with empty tasks list
 
                     setTimeout(function () { // wait for DOM to render
                         $scope.$apply(function () {
@@ -274,10 +246,10 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
             title: 'Create Category',
             prompt: 'Enter Category Name',
             onValidate: function (categoryName) {
-                return validateName($scope.categories, categoryName);
+                return validateName($scope.$storage.collections[$scope.$storage.collections.current], categoryName);
             },
             onSave: function (categoryName) {
-                var categoryIndex = $scope.categories.length;
+                var categoryIndex = $scope.$storage.collections[$scope.$storage.collections.current].length;
 
                 if (categoryName.length) {
                     $log.warn(sprintf('New category name is %s', categoryName));
@@ -291,7 +263,7 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
                         tasks: []
                     };
 
-                    $scope.categories.push(category);
+                    $scope.$storage.collections[$scope.$storage.collections.current].push(category);
 
                     category.removeWatchHandler = $scope.$watchCollection('categories[' + categoryIndex + '].tasks', function (newValues, oldValues) { // watch for changes
                         if (newValues !== oldValues) {
@@ -319,8 +291,7 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
     };
 
     $scope.changeCollection = function (collectionName) {
-        $scope.collections.current = collectionName;
-        $scope.categories = $scope.collections[collectionName];
+        $scope.$storage.collections.current = collectionName;
     };
 
     $scope.editTask = function (category, task) {
@@ -359,24 +330,26 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
     }
 
     $scope.removeCollection = function () {
-        var collection = $scope.collections[$scope.collections.current];
+        var collection = $scope.$storage.collections[$scope.$storage.collections.current];
 
         // TODO: confirm delete collection dialog here
-        alert('removeCollection - ' + $scope.collections.current);
+        alert('removeCollection - ' + $scope.$storage.collections.current);
 
         // empty the collection
-        $scope.categories = $scope.collections[$scope.collections.current] = [];
+        $scope.$storage.collections[$scope.$storage.collections.current] = [];
 
         // remove collection from dropdown list
-        $scope.collections.list = _.without($scope.collections.list, $scope.collections.current);
+        $scope.$storage.collections.list = _.without($scope.$storage.collections.list, $scope.$storage.collections.current);
 
         // TODO: need to remove watch handlers?
 
         // delete the collection
-        //setTimeout(function () {
-        //    $scope.apply(function () {
-        delete $scope.collections[$scope.collections.current];
-        $scope.collections.current = '';
+        //delete $scope.$storage.collections[$scope.$storage.collections.current];
+
+        if (!$scope.$storage.collections.list.length === 1) {
+            $scope.$storage.collections.current = $scope.$storage.collections.list[0];
+        }
+
         //    });
         //});
     };
@@ -387,16 +360,16 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
 
         // TODO: confirm delete category dialog here
 
-        var index = $scope.categories.indexOf(category);
+        var index = $scope.$storage.collections[$scope.$storage.collections.current].indexOf(category);
 
         if (category.removeWatchHandler && typeof category.removeWatchHandler === 'function') {
             category.removeWatchHandler();
         }
 
-        $scope.categories.splice(index, 1); // remove item at categories[index]
+        $scope.$storage.collections[$scope.$storage.collections.current].splice(index, 1); // remove item at categories[index]
 
         // update sequence numbers
-        $scope.categories.forEach(function (category, categoryIndex) {
+        $scope.$storage.collections[$scope.$storage.collections.current].forEach(function (category, categoryIndex) {
             category.sequence = categoryIndex;
         });
     };
@@ -432,7 +405,7 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
         }
     });
 
-    $scope.categories.forEach(function (category, categoryIndex) {
+    $scope.$storage.collections[$scope.$storage.collections.current].forEach(function (category, categoryIndex) {
         category.removeWatchHandler = $scope.$watchCollection('categories[' + categoryIndex + '].tasks', function (newValues, oldValues) { // watch for changes in category tasks
             if (newValues !== oldValues) {
                 if (newValues) {
@@ -460,7 +433,7 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
 
                     // update category sequence (array will not be sorted until next time the collection is loaded)
                     angular.forEach(evt.item.parentNode.getElementsByClassName('category-item'), function (item, index) {
-                        var cat = _.find($scope.categories, function (cat) {
+                        var cat = _.find($scope.$storage.collections[$scope.$storage.collections.current], function (cat) {
                             return cat.id === item.id;
                         });
                         cat.sequence = index;
@@ -515,5 +488,4 @@ taskApp.controller('nameDialogController', ['$scope', '$log', function ($scope, 
     }).on('shown.bs.modal', function (e) {
         $(this).find('input:text').focus();
     });
-
 } ]);

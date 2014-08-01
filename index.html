@@ -59,25 +59,23 @@
                         <button type="button" class="btn btn-default" title="Add Collection" ng-click="addCollection()"><i class="fa fa-file-text fa-lg"></i></button>
                     </div>
                     <div class="btn-group">
-                        <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" ng-model="collections" title="List of available Collections">
-                            {{collections.current}} <span class="caret"></span>
+                        <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" ng-model="$storage.collections" title="List of available Collections">
+                            {{$storage.collections.current}} <span class="caret"></span>
                         </button>
-                        <ul class="dropdown-menu" role="menu" ng-model="collections">
-                            <li ng-repeat="collectionName in collections.list">
-                                <a ng-click="changeCollection(collectionName)">{{collectionName}}</a>
+                        <ul class="dropdown-menu" role="menu" ng-model="$storage.collections.list">
+                            <li ng-repeat="name in $storage.collections.list">
+                                <a ng-click="changeCollection(name)">{{name}}</a>
                             </li>
                         </ul>
                     </div>
                     <button type="button" class="btn btn-default" title="Add Category" ng-click="addCategory()"><i class="fa fa-plus fa-lg"></i></button>
-                    <button type="button" class="btn btn-default" title="Restore Mock Data" ng-click="restoreMockData()"><i class="fa fa-undo fa-lg"></i></button>
-                    <button type="button" class="btn btn-default" title="Dump Data" ng-click="dumpScopeCategories()">Dump $scope.categories</button>
-                    <button type="button" class="btn btn-default hidden" title="Dump Data" ng-click="dumpStorageCategories()">Dump $scope.$storage categories</button>
+                    <button type="button" class="btn btn-default hidden" title="Dump Data" ng-click="dumpStorageCategories()">Dump $scope.$storage</button>
                 </div>
             </div>
         </div>
         <div class="row">
-            <div id="taskboard" ng-model="categories">
-                <div id="{{category.id}}" class="col-md-2 category-item" ng-repeat="category in categories | orderBy:'sequence'"><!-- orderBy doesn't work if "track by" is specified -->
+            <div id="taskboard" ng-model="$storage.collections[$storage.collections.current]">
+                <div id="{{category.id}}" class="col-md-2 category-item" ng-repeat="category in $storage.collections[$storage.collections.current] | orderBy:'sequence'"><!-- orderBy doesn't work if "track by" is specified -->
                     <div class="bs-component">
                         <div class="panel panel-primary">
                             <div class="panel-heading">
@@ -101,9 +99,7 @@
             </div>
         </div>
         <div class="row">
-            <div class="col-md-6"><pre>{{categories | json}}</pre></div>
-            <div class="col-md-6"><pre>{{$storage.collections[$storage.collections.current] | json}}</pre>
-            </div>
+            <pre>{{$storage.collections[$storage.collections.current] | json}}</pre>
         </div>
     </div>
     <script src="//ajax.aspnetcdn.com/ajax/jQuery/jquery-2.1.0.min.js"></script>
@@ -115,6 +111,7 @@
     <script src="/js/ngStorage.min.js"></script>
     <script src="/js/controllers.js"></script>
     <script src="/js/services.js"></script>
+    <script src="/js/controllers/nameDialog.js"></script>
     <script src="/js/directives.js"></script>
 </body>
 </html>
