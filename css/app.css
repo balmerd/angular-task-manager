@@ -46,6 +46,9 @@ input.full-width {
     padding-left: 0;
     padding-right: 5px;
 }
+.glyph-link i {
+    cursor: pointer;
+}
 .panel-body { /* Bootstrap Panel */
     padding: 5px;
 }
@@ -83,4 +86,7 @@ input.full-width {
 }
 .hidden {
     display: none;
+}
+pre {
+    font-size: smaller;
 }

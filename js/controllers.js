@@ -7,7 +7,8 @@ var categoryChangeTimer;
 var taskApp = angular.module('taskApp', ['uuid4', 'ngStorage']);
 
 // include string names for the arguments eg: '$scope' so that they are not replaced when generating minified or obfuscated javascript
-taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4', 'helloWorldService', function ($scope, $log, $localStorage, uuid4, helloWorldService) {
+//taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4', 'helloWorldService', function ($scope, $log, $localStorage, uuid4, helloWorldService) {
+taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4', function ($scope, $log, $localStorage, uuid4) {
 
     // DATA
     ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -20,52 +21,98 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
 
     $scope.nameDialog = null;
     $scope.currentTask = null;
+    $scope.currentCollection = null;
     $scope.currentCategory = null;
 
     $scope.$storage = $localStorage;
 
-    initializeCurrentCollection();
+    var collectionMgr = (function () {
+        //
+        // private
+        //
+        function _createMockCategoriesAndTasks() {
+            return [
+                {
+                    id: uuid4.generate(),
+                    name: 'California',
+                    sequence: 0,
+                    tasks: [
+                        { id: uuid4.generate(), name: 'Hiking', details: 'on Mt. Tamalpais' },
+                        { id: uuid4.generate(), name: 'Camping', details: 'in Carson Pass' },
+                        { id: uuid4.generate(), name: 'Kayaking', details: 'in San Francisco Bay' }
+                    ]
+                },
+                {
+                    id: uuid4.generate(),
+                    name: 'Toronto',
+                    sequence: 1,
+                    tasks: [
+                        { id: uuid4.generate(), name: 'Fishing', details: 'at the Cottage' },
+                        { id: uuid4.generate(), name: 'Biking', details: 'at the Island' }
+                    ]
+                }
+            ];
+        }
+        function _setCurrentFromStorage() {
+            $scope.currentCollection = $scope.$storage.collections[$scope.$storage.collections.current];
+        }
+        function _updateCurrentFromStorage() {
+            $scope.$storage.collections[$scope.$storage.collections.current] = $scope.currentCollection;
+        }
+        function _mockInit() {
+            $scope.$storage.collections = {
+                list: ['test'], current: 'test',
+                test: _createMockCategoriesAndTasks()
+            };
+        }
+        //
+        // public
+        //
+        return {
+            context: function () {
+                return $scope.$storage.collections;
+            },
+            currentName: function () {
+                return $scope.$storage.collections.current;
+            },
+            setCurrentFromStorage: _setCurrentFromStorage,
+            updateCurrentFromStorage: _updateCurrentFromStorage,
+            add: function (collectionName) {
+                $scope.$storage.collections.list.push(collectionName); // add to dropdown
+                $scope.$storage.collections[collectionName] = []; // add collection with empty tasks list
+            },
+            nameIsValid: function (collectionName) {
+                return validateName($scope.$storage.collections, collectionName);
+            },
+            removeCurrentFromList: function () {
+                $scope.$storage.collections.list = _.without($scope.$storage.collections.list, $scope.$storage.collections.current);
+            },
+            changeTo: function (collectionName) {
+                $scope.$storage.collections.current = collectionName;
+                _setCurrentFromStorage();
+            },
+            selectFirstAvailable: function () {
+                if (!$scope.$storage.collections.list.length === 1) {
+                    $scope.$storage.collections.current = $scope.$storage.collections.list[0];
+                }
+            },
+            init: function () {
+                //$scope.$storage.$reset();
+                if (!$scope.$storage.collections) {
+                    _mockInit();
+                }
+                _setCurrentFromStorage();
+            }
+        };
+    })();
 
-    //helloWorldService.sayHello();
+    var taskMgr = (function () {
+        return {
+        };
+    })();
 
     // HELPERS
     ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    function createMockCategoriesAndTasks() {
-        return [
-            {
-                id: uuid4.generate(),
-                name: 'California',
-                sequence: 0,
-                tasks: [
-                    { id: uuid4.generate(), name: 'Hiking', details: 'on Mt. Tamalpais' },
-                    { id: uuid4.generate(), name: 'Camping', details: 'in Carson Pass' },
-                    { id: uuid4.generate(), name: 'Kayaking', details: 'in San Francisco Bay' }
-                ]
-            },
-            {
-                id: uuid4.generate(),
-                name: 'Toronto',
-                sequence: 1,
-                tasks: [
-                    { id: uuid4.generate(), name: 'Fishing', details: 'at the Cottage' },
-                    { id: uuid4.generate(), name: 'Biking', details: 'at the Island' }
-                ]
-            }
-        ];
-    }
-
-    function initializeCurrentCollection() {
-        //$scope.$storage.$reset();
-
-        if (!$scope.$storage.collections) {
-            $scope.$storage.collections = {
-                list: ['test'],
-                current: 'test',
-                test: createMockCategoriesAndTasks()
-            };
-        }
-    }
 
     function sprintf() {
         var s = arguments[0];
@@ -128,6 +175,8 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
 
                     // add task to our scope
                     $scope.currentCategory.tasks.splice(ui.newIndex, 0, $scope.currentTask);
+
+                    collectionMgr.updateCurrentFromStorage();
                 });
             },
             onUpdate: function (evt) {
@@ -152,6 +201,8 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
 
                     // move item at $scope.currentCategory.tasks[currentIndex] to [newIndex]
                     $scope.currentCategory.tasks.splice(ui.newIndex, 0, $scope.currentCategory.tasks.splice(ui.currentIndex, 1)[0]);
+
+                    collectionMgr.updateCurrentFromStorage();
                 });
             },
             onRemove: function (evt) { // fired before onAdd() in sortable.js
@@ -169,6 +220,8 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
 
                 // remove item at $scope.currentCategory.tasks[currentIndex]
                 $scope.currentCategory.tasks.splice(currentIndex, 1);
+
+                collectionMgr.updateCurrentFromStorage();
                 //});
             }
         });
@@ -181,9 +234,9 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
     function validateName(context, name) {
         var obj, validation;
         if (name && name.length) {
-            if (context === $scope.$storage.collections) {
+            if (context === collectionMgr.context()) {
                 obj = context[name];
-            } else if (context === $scope.$storage.collections[$scope.$storage.collections.current]) {
+            } else if (context === $scope.currentCollection) {
                 obj = _.find(context, function (item) {
                     return item.name.toUpperCase() === name.toUpperCase();
                 });
@@ -205,22 +258,23 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
         return validation;
     }
 
+    // TODO: need to refactor this mess
     $scope.addCollection = function () {
         $scope.nameDialog = {
             title: 'Create Collection',
             prompt: 'Enter Collection Name',
             onValidate: function (collectionName) {
-                return validateName($scope.$storage.collections, collectionName);
+                return collectionMgr.nameIsValid(collectionName);
             },
             onSave: function (collectionName) {
                 if (collectionName.length) {
 
-                    $scope.$storage.collections.list.push(collectionName); // add to dropdown
-                    $scope.$storage.collections[collectionName] = []; // add collection with empty tasks list
+                    collectionMgr.add(collectionName);
 
                     setTimeout(function () { // wait for DOM to render
                         $scope.$apply(function () {
-                            $scope.changeCollection(collectionName);
+                            //$scope.changeCollection(collectionName);
+                            collectionMgr.changeTo(collectionName);
                         })
                     }, 0);
                 }
@@ -235,10 +289,10 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
             title: 'Create Category',
             prompt: 'Enter Category Name',
             onValidate: function (categoryName) {
-                return validateName($scope.$storage.collections[$scope.$storage.collections.current], categoryName);
+                return validateName($scope.currentCollections, categoryName);
             },
             onSave: function (categoryName) {
-                var categoryIndex = $scope.$storage.collections[$scope.$storage.collections.current].length;
+                var categoryIndex = $scope.currentCollection.length;
 
                 if (categoryName.length) {
                     $log.warn(sprintf('New category name is %s', categoryName));
@@ -252,7 +306,8 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
                         tasks: []
                     };
 
-                    $scope.$storage.collections[$scope.$storage.collections.current].push(category);
+                    $scope.currentCollection.push(category);
+                    collectionMgr.updateCurrentFromStorage();
 
                     category.removeWatchHandler = $scope.$watchCollection('categories[' + categoryIndex + '].tasks', function (newValues, oldValues) { // watch for changes
                         if (newValues !== oldValues) {
@@ -279,9 +334,7 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
         }).modal('show');
     };
 
-    $scope.changeCollection = function (collectionName) {
-        $scope.$storage.collections.current = collectionName;
-    };
+    $scope.changeCollection = collectionMgr.changeTo;
 
     $scope.editTask = function (category, task) {
         // open task-dialog
@@ -314,31 +367,30 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
             } else {
                 // TODO: verify that task name doesn't already exist
                 $scope.currentCategory.tasks.push({ id: uuid4.generate(), name: taskName, details: taskDetails }); // create task
+                collectionMgr.updateCurrentFromStorage();
             }
         }
     }
 
+    // TODO: need to refactor this mess
     $scope.removeCollection = function () {
-        var collection = $scope.$storage.collections[$scope.$storage.collections.current];
-
         // TODO: confirm delete collection dialog here
-        alert('removeCollection - ' + $scope.$storage.collections.current);
+        alert(sprintf('removeCollection(%s)', collectionMgr.currentName()));
 
         // empty the collection
-        $scope.$storage.collections[$scope.$storage.collections.current] = [];
+        $scope.currentCollection = [];
 
         // remove collection from dropdown list
-        $scope.$storage.collections.list = _.without($scope.$storage.collections.list, $scope.$storage.collections.current);
+        collectionMgr.removeCurrentFromList();
 
         // TODO: need to remove watch handlers?
 
         // delete the collection
-
         //delete $scope.$storage.collections[$scope.$storage.collections.current];
 
-        if (!$scope.$storage.collections.list.length === 1) {
-            $scope.$storage.collections.current = $scope.$storage.collections.list[0];
-        }
+        collectionMgr.selectFirstAvailable();
+
+        collectionMgr.updateCurrentFromStorage();
 
         //    });
         //});
@@ -350,18 +402,20 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
 
         // TODO: confirm delete category dialog here
 
-        var index = $scope.$storage.collections[$scope.$storage.collections.current].indexOf(category);
+        var index = $scope.currentCollection.indexOf(category);
 
         if (category.removeWatchHandler && typeof category.removeWatchHandler === 'function') {
             category.removeWatchHandler();
         }
 
-        $scope.$storage.collections[$scope.$storage.collections.current].splice(index, 1); // remove item at categories[index]
+        $scope.currentCollection.splice(index, 1); // remove item at categories[index]
 
         // update sequence numbers
-        $scope.$storage.collections[$scope.$storage.collections.current].forEach(function (category, categoryIndex) {
+        $scope.currentCollections.forEach(function (category, categoryIndex) {
             category.sequence = categoryIndex;
         });
+
+        collectionMgr.updateCurrentFromStorage();
     };
 
     $scope.removeTask = function (category, task) {
@@ -370,10 +424,16 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
         var index = category.tasks.indexOf(task);
 
         category.tasks.splice(index, 1);
+
+        collectionMgr.updateCurrentFromStorage();
     };
 
     // INIT
     ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    //helloWorldService.sayHello();
+
+    collectionMgr.init();
 
     $('.glyph-link-move').on('click', function (evt) { // clicking move handle won't change the window.location.hash
         evt.preventDefault();
@@ -395,7 +455,7 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
         }
     });
 
-    $scope.$storage.collections[$scope.$storage.collections.current].forEach(function (category, categoryIndex) {
+    $scope.currentCollection.forEach(function (category, categoryIndex) {
         category.removeWatchHandler = $scope.$watchCollection('categories[' + categoryIndex + '].tasks', function (newValues, oldValues) { // watch for changes in category tasks
             if (newValues !== oldValues) {
                 if (newValues) {
@@ -423,11 +483,14 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
 
                     // update category sequence (array will not be sorted until next time the collection is loaded)
                     angular.forEach(evt.item.parentNode.getElementsByClassName('category-item'), function (item, index) {
-                        var cat = _.find($scope.$storage.collections[$scope.$storage.collections.current], function (cat) {
+                        var cat = _.find($scope.currentCollection, function (cat) {
                             return cat.id === item.id;
                         });
+                        $log.info(sprintf('%s.sequence = %s', cat.name, index));
                         cat.sequence = index;
                     });
+
+                    collectionMgr.updateCurrentFromStorage();
                 });
             },
             onRemove: function (evt) {
@@ -443,39 +506,4 @@ taskApp.controller('taskController', ['$scope', '$log', '$localStorage', 'uuid4'
     ////////////////////////////////////////////////////////////////////////////////////////////////////
 
     window.scope = $scope; // for Firebug
-} ]);
-
-taskApp.controller('nameDialogController', ['$scope', '$log', function ($scope, $log) {
-
-    // DATA
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    var $dialog = $('#name-dialog');
-
-    $scope.value = '';
-
-    // METHODS
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    $scope.save = function () {
-        var validation = $scope.nameDialog.onValidate($scope.value);
-
-        if (validation.ok) {
-            $dialog.modal('hide');
-            $scope.nameDialog.onSave($scope.value);
-        } else {
-            setTimeout(function() { // so we don't block UI
-                alert(validation.message);
-            }, 0);
-        }
-    };
-
-    // INIT
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    $dialog.on('show.bs.modal', function (e) {
-        $(this).find('input:text').val('');
-    }).on('shown.bs.modal', function (e) {
-        $(this).find('input:text').focus();
-    });
 } ]);

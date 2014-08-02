@@ -73,13 +73,13 @@
             </div>
         </div>
         <div class="row">
-            <div id="taskboard" ng-model="$storage.collections[$storage.collections.current]">
-                <div id="{{category.id}}" class="col-md-2 category-item" ng-repeat="category in $storage.collections[$storage.collections.current] | orderBy:'sequence'"><!-- orderBy doesn't work if "track by" is specified -->
+            <div id="taskboard" ng-model="currentCollection">
+                <div id="{{category.id}}" class="col-md-2 category-item" ng-repeat="category in currentCollection | orderBy:'sequence'"><!-- orderBy doesn't work if "track by" is specified -->
                     <div class="bs-component">
                         <div class="panel panel-primary">
                             <div class="panel-heading">
                                 <a href="#" class="glyph-link glyph-link-move" title="Move Category"><i class="fa fa-arrows"></i></a>
-                                <h3 class="panel-title">{{category.sequence}} : {{category.name}}</h3>
+                                <h3 class="panel-title">{{$index }} : {{category.name}}</h3>
                                 <a class="glyph-link" title="Add Task" ng-click="addTask(category)"><i class="fa fa-plus fa-lg"></i></a>
                                 <a class="glyph-link" title="Delete Category" ng-click="removeCategory(category)"><i class="fa fa-trash-o"></i></a>
                             </div>
@@ -98,7 +98,14 @@
             </div>
         </div>
         <div class="row">
-            <pre>{{$storage.collections[$storage.collections.current] | json}}</pre>
+            <div class="col-md-6">
+                <p>currentCollection</p>
+                <pre>{{currentCollection | json}}</pre>
+            </div>
+            <div class="col-md-6">
+                <p>$storage.collections[current]</p>
+                <pre>{{$storage.collections[$storage.collections.current] | json}}</pre>
+            </div>
         </div>
     </div>
     <script src="//ajax.aspnetcdn.com/ajax/jQuery/jquery-2.1.0.min.js"></script>
@@ -109,7 +116,8 @@
     <script src="/js/sortable.js"></script>
     <script src="/js/ngStorage.min.js"></script>
     <script src="/js/controllers.js"></script>
-    <script src="/js/services.js"></script>
+    <script src="/js/controllers/nameDialog.js"></script>
+    <!--<script src="/js/services.js"></script>-->
     <script src="/js/directives.js"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 'use strict;'
 
-taskApp.controller('nameDialogController', ['$scope', function ($scope) {
+taskApp.controller('nameDialogController', ['$scope', '$log', function ($scope, $log) {
 
     // DATA
     ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -13,8 +13,16 @@ taskApp.controller('nameDialogController', ['$scope', function ($scope) {
     ////////////////////////////////////////////////////////////////////////////////////////////////////
 
     $scope.save = function () {
-        $dialog.modal('hide');
-        $scope.nameDialog.onSave($scope.value);
+        var validation = $scope.nameDialog.onValidate($scope.value);
+
+        if (validation.ok) {
+            $dialog.modal('hide');
+            $scope.nameDialog.onSave($scope.value);
+        } else {
+            setTimeout(function() { // so we don't block UI
+                alert(validation.message);
+            }, 0);
+        }
     };
 
     // INIT
@@ -25,5 +33,4 @@ taskApp.controller('nameDialogController', ['$scope', function ($scope) {
     }).on('shown.bs.modal', function (e) {
         $(this).find('input:text').focus();
     });
-
 } ]);
